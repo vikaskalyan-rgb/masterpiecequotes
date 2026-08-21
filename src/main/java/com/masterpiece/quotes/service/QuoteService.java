@@ -25,7 +25,8 @@ public class QuoteService {
 
     @Transactional(readOnly = true)
     public List<QuoteSummaryDto> list(QuoteStatus status, String search) {
-        return quoteRepository.search(status, (search == null || search.isBlank()) ? null : search)
+        String safeSearch = (search == null) ? "" : search.trim();
+        return quoteRepository.search(status, safeSearch)
                 .stream()
                 .map(this::toSummaryDto)
                 .collect(Collectors.toList());
