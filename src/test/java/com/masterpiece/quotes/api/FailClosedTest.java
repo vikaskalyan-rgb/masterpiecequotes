@@ -7,15 +7,20 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-// Without a proper APP_PASSWORD the API must refuse to start, never start unprotected.
+// Without an APP_PASSWORD (4+ characters) the API must refuse to start, never start unprotected.
 class FailClosedTest {
 
     @ParameterizedTest
     @NullAndEmptySource
-    @ValueSource(strings = {"short", "elevenchars"})
-    void refusesToStartWithoutAStrongPassword(String password) {
+    @ValueSource(strings = {"1", "123"})
+    void refusesToStartWithoutAPassword(String password) {
         assertThatThrownBy(() -> SecurityConfigAccess.users(password))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("APP_PASSWORD");
+    }
+
+    @org.junit.jupiter.api.Test
+    void acceptsTheOwnersFourDigitCode() {
+        org.assertj.core.api.Assertions.assertThatCode(() -> SecurityConfigAccess.users("4821")).doesNotThrowAnyException();
     }
 }

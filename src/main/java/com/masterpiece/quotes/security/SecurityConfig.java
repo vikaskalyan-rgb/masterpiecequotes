@@ -5,6 +5,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -37,7 +39,13 @@ import java.util.List;
 @Configuration
 public class SecurityConfig {
 
-    static final int MIN_PASSWORD_LENGTH = 12;
+    static final String GLOBAL_KEY = "all";
+
+    // The owner chose a short PIN-style password, so brute-force protection carries the weight:
+    // per-IP lockout plus a global cap on failed attempts (see filterChain). Below 4 still refuses.
+    static final int MIN_PASSWORD_LENGTH = 4;
+    static final int RECOMMENDED_PASSWORD_LENGTH = 12;
+    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
     @Bean
     PasswordEncoder passwordEncoder() {
@@ -53,6 +61,10 @@ public class SecurityConfig {
             throw new IllegalStateException("APP_PASSWORD must be set to at least " + MIN_PASSWORD_LENGTH
                     + " characters. Set it in the Render environment variables.");
         }
+        if (password.length() < RECOMMENDED_PASSWORD_LENGTH) {
+            log.warn("APP_PASSWORD is shorter than {} characters; sign-in lockouts are the main protection.",
+                    RECOMMENDED_PASSWORD_LENGTH);
+        }
         return new InMemoryUserDetailsManager(
                 User.withUsername(username).password(encoder.encode(password)).roles("OWNER").build());
     }
@@ -63,8 +75,17 @@ public class SecurityConfig {
         return new AttemptLimiter(maxFailures, Duration.ofMinutes(lockoutMinutes), Clock.systemUTC());
     }
 
+    // Caps wrong passwords from all IPs together, so spreading guesses across many addresses
+    // doesn't get around the per-IP lockout.
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http, AttemptLimiter loginLimiter) throws Exception {
+    AttemptLimiter globalLoginLimiter(@Value("${app.auth.global-max-failures}") int maxFailures,
+                                      @Value("${app.auth.global-window-minutes}") int windowMinutes) {
+        return new AttemptLimiter(maxFailures, Duration.ofMinutes(windowMinutes), Clock.systemUTC());
+    }
+
+    @Bean
+    SecurityFilterChain filterChain(HttpSecurity http, AttemptLimiter loginLimiter,
+                                    AttemptLimiter globalLoginLimiter) throws Exception {
         AttemptLimiter clientErrorLimiter = new AttemptLimiter(30, Duration.ofMinutes(1), Clock.systemUTC());
 
         // Rejects with 401 but WITHOUT "WWW-Authenticate: Basic", so browsers never show their own
@@ -72,6 +93,8 @@ public class SecurityConfig {
         AuthenticationEntryPoint entryPoint = (request, response, ex) -> {
             if (request.getHeader("Authorization") != null) {
                 loginLimiter.record(request.getRemoteAddr());
+                globalLoginLimiter.record(GLOBAL_KEY);
+                log.warn("Failed sign-in from {}", request.getRemoteAddr());
             }
             JsonErrors.write(response, HttpServletResponse.SC_UNAUTHORIZED, "Password required or incorrect");
         };
@@ -87,7 +110,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/health", "/api/health/ready").permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated())
-                .addFilterBefore(new LockoutFilter(loginLimiter, clientErrorLimiter), BasicAuthenticationFilter.class);
+                .addFilterBefore(new LockoutFilter(loginLimiter, globalLoginLimiter, clientErrorLimiter), BasicAuthenticationFilter.class);
         return http.build();
     }
 
@@ -107,10 +130,12 @@ public class SecurityConfig {
     // Blocks an IP after too many wrong passwords (brute force), and caps client error reports.
     static final class LockoutFilter extends OncePerRequestFilter {
         private final AttemptLimiter loginLimiter;
+        private final AttemptLimiter globalLoginLimiter;
         private final AttemptLimiter clientErrorLimiter;
 
-        LockoutFilter(AttemptLimiter loginLimiter, AttemptLimiter clientErrorLimiter) {
+        LockoutFilter(AttemptLimiter loginLimiter, AttemptLimiter globalLoginLimiter, AttemptLimiter clientErrorLimiter) {
             this.loginLimiter = loginLimiter;
+            this.globalLoginLimiter = globalLoginLimiter;
             this.clientErrorLimiter = clientErrorLimiter;
         }
 
@@ -119,7 +144,11 @@ public class SecurityConfig {
                 throws ServletException, IOException {
             String ip = request.getRemoteAddr();
             if (request.getHeader("Authorization") != null && loginLimiter.isBlocked(ip)) {
-                JsonErrors.write(response, 429, "Too many wrong passwords. Try again in a few minutes.");
+                JsonErrors.write(response, 429, "Too many wrong passwords. Try again in 15 minutes.");
+                return;
+            }
+            if (request.getHeader("Authorization") != null && globalLoginLimiter.isBlocked(GLOBAL_KEY)) {
+                JsonErrors.write(response, 429, "Sign-in is paused after many wrong passwords. Try again within the hour.");
                 return;
             }
             if ("/api/client-errors".equals(request.getRequestURI())) {
