@@ -40,6 +40,30 @@ class QuoteApiTest extends ApiTestBase {
     }
 
     @Test
+    void sqftItemWithOnlyATypedAreaKeepsItsAreaOnSave() throws Exception {
+        String body = quoteJson("Ravi", "9994445388", null).replace(
+                "{\"description\": \"Cutlery basket\", \"unit\": \"NOS\", \"quantity\": 2, \"rate\": 850}",
+                "{\"description\": \"Utility box (2X2)(1X7)\", \"unit\": \"SQFT\", \"quantity\": 11, \"rate\": 1000}");
+        JsonNode q = read(postJson("/api/quotes", body).andExpect(status().isCreated()));
+        JsonNode item = q.at("/rooms/0/items/1");
+        assertThat(item.get("description").asString()).isEqualTo("Utility box (2X2)(1X7)");
+        assertThat(item.get("quantity").decimalValue()).isEqualByComparingTo("11");
+        assertThat(item.get("amount").decimalValue()).isEqualByComparingTo("11000");
+        assertThat(item.get("length").isNull()).isTrue();
+    }
+
+    @Test
+    void adjustedBilledAreaSurvivesASave() throws Exception {
+        String body = quoteJson("Ravi", "9994445388", null).replace(
+                "{\"description\": \"Base cabinet\", \"unit\": \"SQFT\", \"length\": 7, \"width\": 4, \"quantity\": 999, \"rate\": 1500}",
+                "{\"description\": \"Foyer Box\", \"unit\": \"SQFT\", \"length\": 2.5, \"width\": 5.5, \"quantity\": 14, \"rate\": 1250, \"areaAdjusted\": true}");
+        JsonNode item = read(postJson("/api/quotes", body).andExpect(status().isCreated())).at("/rooms/0/items/0");
+        assertThat(item.get("length").decimalValue()).isEqualByComparingTo("2.5");
+        assertThat(item.get("quantity").decimalValue()).isEqualByComparingTo("14");
+        assertThat(item.get("amount").decimalValue()).isEqualByComparingTo("17500");
+    }
+
+    @Test
     void typedTotalIsKeptExactlyWhenOverridden() throws Exception {
         JsonNode q = read(postJson("/api/quotes",
                 quoteJson("Ravi", "9994445388", "\"totalOverridden\": true, \"roundedTotal\": 44000")));

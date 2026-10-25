@@ -21,8 +21,10 @@ profile printed on the PDF. PDFs are generated in the frontend from the data thi
 ## Security
 
 A single owner signs in with one password (`APP_PASSWORD`), sent as HTTP Basic over HTTPS on every
-request. Without `APP_PASSWORD` (12+ characters) the app **refuses to start**: it fails closed,
-never open. After 10 wrong passwords an IP is locked out for 15 minutes.
+request. Without `APP_PASSWORD` (at least 4 characters; 12+ recommended) the app **refuses to start**:
+it fails closed, never open. Brute-force protection: 5 wrong passwords lock an IP out for 15 minutes,
+and 30 wrong passwords from anywhere within an hour pause all sign-ins for the rest of that hour.
+Failed sign-ins are logged.
 `/api/health` and `/api/health/ready` are the only public endpoints.
 
 ## Local setup
@@ -95,7 +97,7 @@ in a later release, once nothing reads them.
 2. Render → the web service → Environment:
    - `DB_URL`: `jdbc:postgresql://<host>/<db>?sslmode=require&channel_binding=require`
    - `DB_USERNAME`, `DB_PASSWORD`
-   - `APP_PASSWORD`: the app's sign-in password, 12+ characters
+   - `APP_PASSWORD`: the app's sign-in password (4+ characters; longer is safer)
    - `CORS_ORIGINS`: the Vercel URL, e.g. `https://masterpiece-quotes.vercel.app`
 3. Deploy (Docker, using the included `Dockerfile`).
 4. Optional: set Render's health check path to `/api/health/ready`, so a deploy that can't reach the

@@ -21,12 +21,12 @@ public final class Totals {
         return nz(value).setScale(2, RoundingMode.HALF_UP);
     }
 
-    // SQFT: length x width (0 until both are known). NOS: the count as entered.
-    public static BigDecimal quantity(ItemUnit unit, BigDecimal length, BigDecimal width, BigDecimal enteredQuantity) {
-        if (unit == ItemUnit.SQFT) {
-            if (length == null || width == null) {
-                return BigDecimal.ZERO.setScale(2);
-            }
+    // SQFT: length x width, unless the billed area was adjusted by hand (real quotes round 13.75 to
+    // 14 sqft, bill "2 Nos" of 1.5 x 1.5 as 4.5, or enter "(2X2)(1X7)" as 11) or there are no
+    // dimensions; then the area as typed. NOS: the count.
+    public static BigDecimal quantity(ItemUnit unit, BigDecimal length, BigDecimal width, BigDecimal enteredQuantity,
+                                      boolean areaAdjusted) {
+        if (unit == ItemUnit.SQFT && !areaAdjusted && length != null && width != null) {
             return length.multiply(width).setScale(2, RoundingMode.HALF_UP);
         }
         return money(enteredQuantity);

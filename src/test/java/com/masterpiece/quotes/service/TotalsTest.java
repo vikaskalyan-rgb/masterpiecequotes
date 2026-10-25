@@ -16,18 +16,28 @@ class TotalsTest {
 
     @Test
     void sqftQuantityIsLengthTimesWidthAndIgnoresTypedQuantity() {
-        assertThat(Totals.quantity(ItemUnit.SQFT, d("7"), d("4"), d("999"))).isEqualByComparingTo("28");
-        assertThat(Totals.quantity(ItemUnit.SQFT, d("7.25"), d("3.33"), null)).isEqualByComparingTo("24.14");
+        assertThat(Totals.quantity(ItemUnit.SQFT, d("7"), d("4"), d("999"), false)).isEqualByComparingTo("28");
+        assertThat(Totals.quantity(ItemUnit.SQFT, d("7.25"), d("3.33"), null, false)).isEqualByComparingTo("24.14");
     }
 
     @Test
-    void sqftWithoutBothDimensionsIsZero() {
-        assertThat(Totals.quantity(ItemUnit.SQFT, d("7"), null, d("28"))).isEqualByComparingTo("0");
+    void sqftWithoutBothDimensionsUsesTheTypedArea() {
+        // Real production data: "(2X2)(1X7)" entered as 11 sqft with no single length/width.
+        assertThat(Totals.quantity(ItemUnit.SQFT, null, null, d("11"), false)).isEqualByComparingTo("11");
+        assertThat(Totals.quantity(ItemUnit.SQFT, d("7"), null, d("28"), false)).isEqualByComparingTo("28");
+        assertThat(Totals.quantity(ItemUnit.SQFT, null, null, null, false)).isEqualByComparingTo("0");
+    }
+
+    @Test
+    void adjustedBilledAreaIsKeptEvenWithDimensions() {
+        // Real production data: 2.5 x 5.5 = 13.75 billed as 14; "2 Nos" of 1.5 x 1.5 billed as 4.5.
+        assertThat(Totals.quantity(ItemUnit.SQFT, d("2.5"), d("5.5"), d("14"), true)).isEqualByComparingTo("14");
+        assertThat(Totals.quantity(ItemUnit.SQFT, d("1.5"), d("1.5"), d("4.5"), true)).isEqualByComparingTo("4.5");
     }
 
     @Test
     void nosQuantityIsTheCountEntered() {
-        assertThat(Totals.quantity(ItemUnit.NOS, d("7"), d("4"), d("3"))).isEqualByComparingTo("3");
+        assertThat(Totals.quantity(ItemUnit.NOS, d("7"), d("4"), d("3"), false)).isEqualByComparingTo("3");
     }
 
     @Test

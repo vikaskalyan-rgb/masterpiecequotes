@@ -51,7 +51,7 @@ public class BackupService {
         if (backup == null || !BackupDto.FORMAT.equals(backup.format()) || backup.quotes() == null) {
             throw new InvalidInputException("file", "This isn't a Masterpiece Quotes backup file");
         }
-        if (backup.formatVersion() > BackupDto.FORMAT_VERSION) {
+        if (backup.formatVersion() != null && backup.formatVersion() > BackupDto.FORMAT_VERSION) {
             throw new InvalidInputException("file", "This backup was made by a newer version of the app");
         }
 
@@ -114,7 +114,7 @@ public class BackupService {
     private static QuoteRequest toRequest(QuoteDetailDto d) {
         List<RoomRequest> rooms = d.rooms() == null ? List.of() : d.rooms().stream()
                 .map(r -> new RoomRequest(r.name(), r.items() == null ? List.of() : r.items().stream()
-                        .map(i -> new ItemRequest(i.description(), i.length(), i.width(), i.quantity(), i.unit(), i.rate()))
+                        .map(i -> new ItemRequest(i.description(), i.length(), i.width(), i.quantity(), i.unit(), i.rate(), Boolean.TRUE))
                         .toList()))
                 .toList();
         return new QuoteRequest(d.customerName(), d.customerPhone(), d.customerAddress(), d.quoteDate(),

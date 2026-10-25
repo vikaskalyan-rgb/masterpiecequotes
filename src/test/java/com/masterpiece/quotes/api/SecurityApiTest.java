@@ -65,6 +65,16 @@ class SecurityApiTest extends ApiTestBase {
     }
 
     @Test
+    void globalLimiterBlocksGuessesSpreadAcrossManyAddresses() {
+        com.masterpiece.quotes.security.AttemptLimiter global = new com.masterpiece.quotes.security.AttemptLimiter(
+                30, java.time.Duration.ofHours(1), java.time.Clock.systemUTC());
+        for (int i = 0; i < 30; i++) {
+            global.record("all");
+        }
+        org.assertj.core.api.Assertions.assertThat(global.isBlocked("all")).isTrue();
+    }
+
+    @Test
     void clientErrorsAreAcceptedFromTheApp() throws Exception {
         mvc.perform(post("/api/client-errors").header(HttpHeaders.AUTHORIZATION, AUTH).contentType("application/json")
                         .content("{\"message\":\"TypeError: x is undefined\",\"url\":\"/quotes/1\"}"))
