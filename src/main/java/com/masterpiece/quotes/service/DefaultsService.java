@@ -10,72 +10,53 @@ import com.masterpiece.quotes.repository.DefaultTermItemRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.List;
-
 @Service
 public class DefaultsService {
 
     private final DefaultMaterialSpecItemRepository specRepository;
     private final DefaultTermItemRepository termRepository;
 
-    public DefaultsService(DefaultMaterialSpecItemRepository specRepository,
-                            DefaultTermItemRepository termRepository) {
+    public DefaultsService(DefaultMaterialSpecItemRepository specRepository, DefaultTermItemRepository termRepository) {
         this.specRepository = specRepository;
         this.termRepository = termRepository;
     }
 
     @Transactional(readOnly = true)
     public DefaultsDto get() {
-        DefaultsDto dto = new DefaultsDto();
-
-        List<MaterialSpecItemDto> specs = new ArrayList<>();
-        for (DefaultMaterialSpecItem s : specRepository.findAllByOrderBySortOrderAsc()) {
-            MaterialSpecItemDto d = new MaterialSpecItemDto();
-            d.setId(s.getId());
-            d.setItemLabel(s.getItemLabel());
-            d.setDetail(s.getDetail());
-            d.setBrand(s.getBrand());
-            d.setSortOrder(s.getSortOrder());
-            specs.add(d);
-        }
-        dto.setMaterialSpecItems(specs);
-
-        List<TermItemDto> terms = new ArrayList<>();
-        for (DefaultTermItem t : termRepository.findAllByOrderBySortOrderAsc()) {
-            TermItemDto d = new TermItemDto();
-            d.setId(t.getId());
-            d.setText(t.getText());
-            d.setSortOrder(t.getSortOrder());
-            terms.add(d);
-        }
-        dto.setTermItems(terms);
-
-        return dto;
+        return new DefaultsDto(
+                specRepository.findAllByOrderBySortOrderAsc().stream()
+                        .map(s -> new MaterialSpecItemDto(s.getItemLabel(), s.getDetail(), s.getBrand()))
+                        .toList(),
+                termRepository.findAllByOrderBySortOrderAsc().stream()
+                        .map(t -> new TermItemDto(t.getText()))
+                        .toList());
     }
 
     @Transactional
     public DefaultsDto update(DefaultsDto request) {
-        specRepository.deleteAll();
+        specRepository.deleteAllInBatch();
         int specOrder = 0;
-        for (MaterialSpecItemDto d : request.getMaterialSpecItems()) {
+        for (MaterialSpecItemDto d : request.specsOrEmpty()) {
             DefaultMaterialSpecItem s = new DefaultMaterialSpecItem();
-            s.setItemLabel(d.getItemLabel());
-            s.setDetail(d.getDetail());
-            s.setBrand(d.getBrand());
-            s.setSortOrder(d.getSortOrder() != null ? d.getSortOrder() : specOrder++);
+            s.setItemLabel(d.itemLabel().trim());
+            s.setDetail(blankToNull(d.detail()));
+            s.setBrand(blankToNull(d.brand()));
+            s.setSortOrder(specOrder++);
             specRepository.save(s);
         }
 
-        termRepository.deleteAll();
+        termRepository.deleteAllInBatch();
         int termOrder = 0;
-        for (TermItemDto d : request.getTermItems()) {
+        for (TermItemDto d : request.termsOrEmpty()) {
             DefaultTermItem t = new DefaultTermItem();
-            t.setText(d.getText());
-            t.setSortOrder(d.getSortOrder() != null ? d.getSortOrder() : termOrder++);
+            t.setText(d.text().trim());
+            t.setSortOrder(termOrder++);
             termRepository.save(t);
         }
-
         return get();
+    }
+
+    private static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s.trim();
     }
 }

@@ -10,12 +10,14 @@ import java.util.List;
 
 public interface ItemRepository extends JpaRepository<Item, Long> {
 
-    // Distinct past descriptions matching what he's typing, most-used first, for autocomplete.
+    // Past descriptions starting with what's being typed, most-used first, with the unit each
+    // was used with (Object[]: description, unit, count). The prefix is LIKE-escaped by the caller.
     @Query("""
-        SELECT i.description FROM Item i
-        WHERE LOWER(i.description) LIKE LOWER(CONCAT(:prefix, '%'))
-        GROUP BY i.description
-        ORDER BY COUNT(i.description) DESC
+        SELECT i.description, i.unit, COUNT(i) FROM Item i
+        WHERE i.room.quote.deletedAt IS NULL
+        AND LOWER(i.description) LIKE LOWER(CONCAT(:prefix, '%')) ESCAPE '\\'
+        GROUP BY i.description, i.unit
+        ORDER BY COUNT(i) DESC
         """)
-    List<String> findSuggestions(@Param("prefix") String prefix, Pageable pageable);
+    List<Object[]> findSuggestions(@Param("prefix") String prefix, Pageable pageable);
 }

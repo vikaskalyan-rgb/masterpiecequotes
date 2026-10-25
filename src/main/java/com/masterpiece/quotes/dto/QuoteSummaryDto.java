@@ -1,22 +1,25 @@
 package com.masterpiece.quotes.dto;
 
 import com.masterpiece.quotes.entity.QuoteStatus;
-import lombok.Getter;
-import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 
-@Getter
-@Setter
-public class QuoteSummaryDto {
-    private Long id;
-    private String customerName;
-    private String customerPhone;
-    private String customerAddress;
-    private LocalDate quoteDate;
-    private QuoteStatus status;
-    private BigDecimal roundedTotal;
-    private Instant updatedAt;
+public record QuoteSummaryDto(
+        Long id,
+        Integer quoteNumber,
+        String customerName,
+        String customerPhone,
+        String customerAddress,
+        LocalDate quoteDate,
+        LocalDate validUntil,
+        QuoteStatus status,
+        BigDecimal subtotal,
+        BigDecimal roundedTotal,
+        boolean totalOverridden,
+        Instant firstSentAt,
+        Instant updatedAt,
+        Instant deletedAt
+) {
 }

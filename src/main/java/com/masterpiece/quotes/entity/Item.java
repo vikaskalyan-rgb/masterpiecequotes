@@ -20,7 +20,7 @@ public class Item {
     @JoinColumn(name = "room_id", nullable = false)
     private Room room;
 
-    // e.g. "Wardrobe Framed" - dimensions are appended for display, e.g. "Wardrobe Framed (7X4)"
+    // e.g. "Wardrobe Framed". Dimensions live only in length/width (never in this text).
     @Column(nullable = false)
     private String description;
 
@@ -31,7 +31,7 @@ public class Item {
     @Column(precision = 10, scale = 2)
     private BigDecimal width;
 
-    // For SQFT items this is length * width (computed client-side, trusted here).
+    // For SQFT items this is length * width, always recomputed server-side.
     // For NOS items this is a plain count entered directly.
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal quantity;
