@@ -9,13 +9,18 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
-// quantity is only read for NOS items; SQFT quantity is always recomputed as length x width.
+// NOS: quantity is the count. SQFT: quantity is length x width, unless areaAdjusted is true, in
+// which case quantity is the billed area as typed (rounded to whole sqft, several pieces, odd shapes).
 public record ItemRequest(
         @NotBlank @Size(max = 255) String description,
         @PositiveOrZero @DecimalMax("99999.99") BigDecimal length,
         @PositiveOrZero @DecimalMax("99999.99") BigDecimal width,
         @PositiveOrZero @DecimalMax("99999999.99") BigDecimal quantity,
         @NotNull ItemUnit unit,
-        @NotNull @PositiveOrZero @DecimalMax("99999999.99") BigDecimal rate
+        @NotNull @PositiveOrZero @DecimalMax("99999999.99") BigDecimal rate,
+        Boolean areaAdjusted
 ) {
+    public boolean isAreaAdjusted() {
+        return Boolean.TRUE.equals(areaAdjusted);
+    }
 }

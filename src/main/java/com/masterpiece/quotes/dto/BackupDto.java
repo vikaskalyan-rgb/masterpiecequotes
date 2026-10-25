@@ -8,7 +8,7 @@ import java.util.List;
 // the default templates and the business profile.
 public record BackupDto(
         String format,
-        int formatVersion,
+        Integer formatVersion,
         Instant exportedAt,
         BusinessProfileDto business,
         DefaultsDto defaults,

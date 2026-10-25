@@ -277,10 +277,11 @@ public class QuoteService {
                 item.setRoom(room);
                 item.setDescription(ir.description().trim());
                 item.setUnit(ir.unit());
-                boolean sqft = ir.unit() == ItemUnit.SQFT;
-                item.setLength(sqft ? ir.length() : null);
-                item.setWidth(sqft ? ir.width() : null);
-                item.setQuantity(Totals.quantity(ir.unit(), item.getLength(), item.getWidth(), ir.quantity()));
+                // Dimensions only count as a pair; a lone length or width is ignored.
+                boolean dims = ir.unit() == ItemUnit.SQFT && ir.length() != null && ir.width() != null;
+                item.setLength(dims ? ir.length() : null);
+                item.setWidth(dims ? ir.width() : null);
+                item.setQuantity(Totals.quantity(ir.unit(), item.getLength(), item.getWidth(), ir.quantity(), ir.isAreaAdjusted()));
                 item.setRate(Totals.money(ir.rate()));
                 item.setAmount(Totals.amount(item.getQuantity(), item.getRate()));
                 item.setSortOrder(itemOrder++);
