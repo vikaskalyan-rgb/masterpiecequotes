@@ -1,15 +1,14 @@
 package com.masterpiece.quotes.controller;
 
-import com.masterpiece.quotes.dto.QuoteDetailDto;
-import com.masterpiece.quotes.dto.QuoteRequest;
-import com.masterpiece.quotes.dto.QuoteSummaryDto;
-import com.masterpiece.quotes.dto.StatusUpdateRequest;
+import com.masterpiece.quotes.dto.*;
 import com.masterpiece.quotes.entity.QuoteStatus;
 import com.masterpiece.quotes.service.QuoteService;
 import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
 import java.util.List;
 
 @RestController
@@ -23,10 +22,10 @@ public class QuoteController {
     }
 
     @GetMapping
-    public List<QuoteSummaryDto> list(
-            @RequestParam(required = false) QuoteStatus status,
-            @RequestParam(required = false) String search) {
-        return quoteService.list(status, search);
+    public List<QuoteSummaryDto> list(@RequestParam(required = false) QuoteStatus status,
+                                      @RequestParam(required = false) String search,
+                                      @RequestParam(defaultValue = "false") boolean deleted) {
+        return deleted ? quoteService.listDeleted() : quoteService.list(status, search);
     }
 
     @GetMapping("/{id}")
@@ -36,7 +35,8 @@ public class QuoteController {
 
     @PostMapping
     public ResponseEntity<QuoteDetailDto> create(@Valid @RequestBody QuoteRequest request) {
-        return ResponseEntity.ok(quoteService.create(request));
+        QuoteDetailDto created = quoteService.create(request);
+        return ResponseEntity.created(URI.create("/api/quotes/" + created.id())).body(created);
     }
 
     @PutMapping("/{id}")
@@ -46,12 +46,33 @@ public class QuoteController {
 
     @PatchMapping("/{id}/status")
     public QuoteDetailDto updateStatus(@PathVariable Long id, @Valid @RequestBody StatusUpdateRequest request) {
-        return quoteService.updateStatus(id, request.getStatus());
+        return quoteService.updateStatus(id, request.status());
+    }
+
+    // Called right before the PDF goes to the customer: records exactly what was sent.
+    @PostMapping("/{id}/share")
+    public ShareResultDto share(@PathVariable Long id) {
+        return quoteService.share(id);
+    }
+
+    @GetMapping("/{id}/snapshots")
+    public List<SnapshotSummaryDto> snapshots(@PathVariable Long id) {
+        return quoteService.listSnapshots(id);
+    }
+
+    @GetMapping(value = "/{id}/snapshots/{snapshotId}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public String snapshot(@PathVariable Long id, @PathVariable Long snapshotId) {
+        return quoteService.snapshotPayload(id, snapshotId);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         quoteService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/restore")
+    public QuoteDetailDto restore(@PathVariable Long id) {
+        return quoteService.restore(id);
     }
 }
