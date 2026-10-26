@@ -14,7 +14,10 @@ import java.util.List;
 public class Room {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    // Ids come 50 at a time from the table's own sequence (see V3), so a save inserts all rows
+    // in one batch instead of one round trip per row.
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "rooms_ids")
+    @SequenceGenerator(name = "rooms_ids", sequenceName = "rooms_id_seq", allocationSize = 50)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

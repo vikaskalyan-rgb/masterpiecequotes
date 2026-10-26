@@ -16,6 +16,9 @@ public class BusinessProfileService {
     private static final Set<Integer> ALLOWED_STEPS = Set.of(1, 10, 100, 500, 1000);
 
     private final BusinessProfileRepository repository;
+    // One row, read on every quote but changed only from Settings: kept in memory (one server
+    // instance) so opening a quote doesn't pay a database round trip for it.
+    private volatile BusinessProfile cached;
 
     public BusinessProfileService(BusinessProfileRepository repository) {
         this.repository = repository;
@@ -24,6 +27,15 @@ public class BusinessProfileService {
     // The row is created by migration V2; it is never missing in a migrated database.
     @Transactional(readOnly = true)
     public BusinessProfile current() {
+        BusinessProfile p = cached;
+        if (p == null) {
+            p = load();
+            cached = p;
+        }
+        return p;
+    }
+
+    private BusinessProfile load() {
         return repository.findById(BusinessProfile.SINGLETON_ID)
                 .orElseThrow(() -> new IllegalStateException("business_profile row is missing - run migrations"));
     }
@@ -38,7 +50,7 @@ public class BusinessProfileService {
         if (!ALLOWED_STEPS.contains(dto.roundingStep())) {
             throw new InvalidInputException("roundingStep", "must be one of 1, 10, 100, 500 or 1000");
         }
-        BusinessProfile p = current();
+        BusinessProfile p = load();
         p.setName(dto.name().trim());
         p.setTagline(blankToNull(dto.tagline()));
         p.setAddress(dto.address().trim());
@@ -51,7 +63,9 @@ public class BusinessProfileService {
         p.setRoundingMode(dto.roundingMode());
         p.setValidityDays(dto.validityDays());
         p.setUpdatedAt(Instant.now());
-        return toDto(repository.save(p));
+        BusinessProfile saved = repository.save(p);
+        cached = saved;
+        return toDto(saved);
     }
 
     public static BusinessProfileDto toDto(BusinessProfile p) {
