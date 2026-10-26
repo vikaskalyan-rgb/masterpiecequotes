@@ -13,7 +13,10 @@ import java.math.BigDecimal;
 public class Item {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    // Ids come 50 at a time from the table's own sequence (see V3), so a save inserts all rows
+    // in one batch instead of one round trip per row.
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "items_ids")
+    @SequenceGenerator(name = "items_ids", sequenceName = "items_id_seq", allocationSize = 50)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

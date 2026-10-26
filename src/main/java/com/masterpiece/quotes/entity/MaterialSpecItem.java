@@ -11,7 +11,10 @@ import lombok.Setter;
 public class MaterialSpecItem {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    // Ids come 50 at a time from the table's own sequence (see V3), so a save inserts all rows
+    // in one batch instead of one round trip per row.
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "material_spec_items_ids")
+    @SequenceGenerator(name = "material_spec_items_ids", sequenceName = "material_spec_items_id_seq", allocationSize = 50)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
